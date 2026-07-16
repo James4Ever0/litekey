@@ -1,9 +1,8 @@
-# LiteKey - RP2040 Zero Dual-Mode Password Keyboard
+# LiteKey - Dual-Mode Password Keyboard
 
 https://github.com/user-attachments/assets/5857cb4c-461d-425d-8436-c0ecb6eec525
 
-
-A firmware for the **Waveshare RP2040 Zero** board that turns the BOOT button into a dual-function password keyboard:
+A firmware for **RP2040/RP2350** boards (tested on Waveshare RP2040 Zero) that turns the BOOT button into a dual-function password keyboard:
 - **Short press** — outputs a configurable short string (default: Enter key)
 - **Long press** (>1s) — outputs a configurable password (default: `DefaultPass`)
 
@@ -11,7 +10,7 @@ All settings are persisted to Flash (EEPROM) and can be changed via the serial c
 
 ## Hardware
 
-- **Board:** Waveshare RP2040 Zero (or any RP2040 board with a BOOTSEL button)
+- **Board:** Waveshare RP2040 Zero (or any RP2040/RP2350 board with a BOOTSEL button)
 - **Connection:** USB-C to USB-A cable to your PC
 
 ## Entering Bootloader (UF2) Mode
