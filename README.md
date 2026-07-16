@@ -1,4 +1,4 @@
-# RP2040 Zero Dual-Mode Password Keyboard
+# LiteKey - RP2040 Zero Dual-Mode Password Keyboard
 
 A firmware for the **Waveshare RP2040 Zero** board that turns the BOOT button into a dual-function password keyboard:
 - **Short press** — outputs a configurable short string (default: Enter key)
