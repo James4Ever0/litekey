@@ -72,8 +72,8 @@ If you connect in time, the following commands are available:
 
 | Command | Description | Example |
 |---|---|---|
-| `SETLONG:内容` | Set long-press output | `SETLONG:MyPass123` |
-| `SETSHORT:内容` | Set short-press output | `SETSHORT:hello` |
+| `SETLONG:content` | Set long-press output | `SETLONG:MyPass123` |
+| `SETSHORT:content` | Set short-press output | `SETSHORT:hello` |
 | `SETENTER:1` or `SETENTER:0` | Enable/disable auto-append Enter | `SETENTER:1` |
 
 - Send an empty value (e.g. `SETSHORT:`) to clear it — short press will revert to sending just the Enter key.
