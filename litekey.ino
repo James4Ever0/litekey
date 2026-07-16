@@ -1,48 +1,49 @@
 /*
- * RP2040 Zero 双模式密码键盘
- * - 短按 BOOT 键：输出 shortOutput (可自定义，默认为回车键)
- * - 长按 BOOT 键：输出 longOutput (可自定义，默认为 "DefaultPass")
- * - 可选：输入字符串后自动追加回车 (由 EEPROM 标志控制，默认开启)
- * - 串口命令：
- *     SETLONG:新内容   -> 设置长按输出 (持久化)
- *     SETSHORT:新内容  -> 设置短按输出 (持久化)
- *     SETENTER:1或0    -> 设置输入后是否自动追加回车 (持久化, 1=追加 0=不追加)
- *     发送空内容 (如 SETSHORT:) 可清空，此时短按恢复为回车
- * - 所有设置保存在 Flash (EEPROM) 中
+ * RP2040 Zero Dual-Mode Password Keyboard
+ * - Short press BOOT: outputs shortOutput (configurable, defaults to Enter key)
+ * - Long press BOOT: outputs longOutput (configurable, defaults to "DefaultPass")
+ * - Optionally appends Enter after output (controlled by EEPROM flag, default on)
+ * - Serial commands:
+ *     SETLONG:content   -> set long-press output (persistent)
+ *     SETSHORT:content  -> set short-press output (persistent)
+ *     SETENTER:1 or 0   -> set auto-append-enter (persistent, 1=on 0=off)
+ *     Send empty (e.g. SETSHORT:) to clear; short press reverts to Enter
+ * - All settings saved to Flash (EEPROM)
  */
 
 #include <Keyboard.h>
 #include <EEPROM.h>
 
-// ==================== 常量 ====================
-// 注意：BOOT 键（BOOTSEL）接在 QSPI Flash 片选线上，不在普通 GPIO 上，
-// 不能用 digitalRead() 读取。Philhower 内核提供全局对象 BOOTSEL
-// （不是函数，无括号，按住时为 true，直接用 if (BOOTSEL) 判断）。无需 pinMode()。
+// ==================== Constants ====================
+// Note: The BOOT button (BOOTSEL) is connected to the QSPI Flash chip-select
+// line, not a regular GPIO. It cannot be read with digitalRead(). The
+// Philhower core provides a global BOOTSEL object (not a function, no
+// parentheses). It reads true when held; use if (BOOTSEL). No pinMode() needed.
 #define EEPROM_SIZE      512
-#define LONG_ADDR        0     // 长按字符串起始地址
-#define SHORT_ADDR       128   // 短按字符串起始地址
-#define ENTER_FLAG_ADDR  256   // “自动回车”标志地址（1 字节：1=追加, 0=不追加）
-#define MAX_STR_LEN      128   // 每个字符串最大长度（字节）
+#define LONG_ADDR        0     // EEPROM address for long-press string
+#define SHORT_ADDR       128   // EEPROM address for short-press string
+#define ENTER_FLAG_ADDR  256   // EEPROM address for auto-enter flag (1 byte: 1=on, 0=off)
+#define MAX_STR_LEN      128   // Max string length in bytes
 
 #define SHORT_PRESS_MS 50
 #define LONG_PRESS_MS  1000
 #define SERIAL_TIMEOUT 1500 // Continue even if serial is not ready.
 
-// ==================== 默认值 ====================
-const String DEFAULT_LONG  = "DefaultPass";  // 长按默认密码
-const String DEFAULT_SHORT = "";             // 短按默认为空（代表回车）
-const bool   DEFAULT_APPEND_ENTER = true;    // 默认：输入后自动追加回车
+// ==================== Defaults ====================
+const String DEFAULT_LONG  = "DefaultPass";  // Default long-press password
+const String DEFAULT_SHORT = "";             // Default short-press (empty = Enter key)
+const bool   DEFAULT_APPEND_ENTER = true;    // Default: append Enter after output
 
-// ==================== 全局变量 ====================
-String longOutput;   // 长按时输出的字符串
-String shortOutput;  // 短按时输出的字符串
-bool   appendEnter;  // 输入字符串后是否自动追加回车（持久化到 EEPROM）
+// ==================== Globals ====================
+String longOutput;   // String output on long press
+String shortOutput;  // String output on short press
+bool   appendEnter;  // Whether to append Enter after output (persisted to EEPROM)
 
 bool useSerial;
 
-// ==================== EEPROM 读写通用函数 ====================
+// ==================== EEPROM Read/Write Helpers ====================
 
-// 从指定地址读取字符串（最大 maxLen 字节）
+// Read a string from EEPROM at given address (max maxLen bytes)
 String readStringFromEEPROM(int addr, int maxLen) {
   String str = "";
   for (int i = 0; i < maxLen; i++) {
@@ -53,44 +54,44 @@ String readStringFromEEPROM(int addr, int maxLen) {
   return str;
 }
 
-// 将字符串写入指定地址（自动清空该区域）
+// Write a string to EEPROM at given address (clears area first)
 void writeStringToEEPROM(int addr, int maxLen, String str) {
-  // 先清空该区域
+  // Clear the area first
   for (int i = 0; i < maxLen; i++) {
     EEPROM.write(addr + i, 0);
   }
-  // 写入新字符串（截断超长部分）
+  // Write new string (truncate if too long)
   int len = str.length();
   if (len > maxLen - 1) len = maxLen - 1;
   for (int i = 0; i < len; i++) {
     EEPROM.write(addr + i, str[i]);
   }
-  EEPROM.commit(); // 持久化
+  EEPROM.commit();
 }
 
-// 写入“自动回车”标志（1 字节）并持久化
+// Write the auto-enter flag (1 byte) and persist
 void writeEnterFlagToEEPROM(bool val) {
   EEPROM.write(ENTER_FLAG_ADDR, val ? 1 : 0);
-  EEPROM.commit(); // 持久化
+  EEPROM.commit();
 }
 
 // ==================== setup ====================
 void setup() {
-  // BOOT 键用 BOOTSEL 读取，无需 pinMode()
+  // BOOTSEL is read via the global object, no pinMode() needed
   Keyboard.begin();
   EEPROM.begin(EEPROM_SIZE);
 
-  // 读取长按设置，若为空则使用默认值
+  // Read long-press setting; fall back to default if empty
   longOutput = readStringFromEEPROM(LONG_ADDR, MAX_STR_LEN);
   if (longOutput.length() == 0) {
     longOutput = DEFAULT_LONG;
   }
 
-  // 读取短按设置，若为空则使用默认值（空字符串）
+  // Read short-press setting; fall back to default (empty string)
   shortOutput = readStringFromEEPROM(SHORT_ADDR, MAX_STR_LEN);
-  // 短按默认为空，表示发送回车，不需要额外赋值
+  // Empty shortOutput means send Enter key
 
-  // 读取“自动回车”标志；非法值（如全新 Flash 的 0xFF）回退到默认
+  // Read auto-enter flag; invalid values (e.g. 0xFF on fresh Flash) fall back
   uint8_t enterFlag = EEPROM.read(ENTER_FLAG_ADDR);
   if (enterFlag == 0)      appendEnter = false;
   else if (enterFlag == 1) appendEnter = true;
@@ -114,9 +115,9 @@ void setup() {
     Serial.print("Auto append Enter: ");
     Serial.println(appendEnter ? "ON (1)" : "OFF (0)");
     Serial.println("Commands:");
-    Serial.println("  SETLONG:内容   -> set long-press output");
-    Serial.println("  SETSHORT:内容  -> set short-press output");
-    Serial.println("  SETENTER:1或0  -> set auto-append-enter (1=on, 0=off)");
+    Serial.println("  SETLONG:content  -> set long-press output");
+    Serial.println("  SETSHORT:content -> set short-press output");
+    Serial.println("  SETENTER:1 or 0  -> set auto-append-enter (1=on, 0=off)");
     Serial.println("  (send empty to clear, e.g. SETSHORT:)");
   } else{
     Serial.end();
@@ -126,7 +127,7 @@ void setup() {
 
 // ==================== loop ====================
 void loop() {
-  // ---------- 串口命令处理 ----------
+  // ---------- Serial command handling ----------
   if (useSerial && Serial.available()) {
     String cmd = Serial.readStringUntil('\n');
     cmd.trim();
@@ -143,7 +144,7 @@ void loop() {
       String newVal = cmd.substring(9);
       newVal.trim();
       writeStringToEEPROM(SHORT_ADDR, MAX_STR_LEN, newVal);
-      shortOutput = newVal; // 可以为空
+      shortOutput = newVal; // empty is valid (sends Enter key only)
       Serial.print("Short output updated to: ");
       if (shortOutput.length() == 0) {
         Serial.println("<ENTER>");
@@ -154,7 +155,7 @@ void loop() {
     else if (cmd.startsWith("SETENTER:")) {
       String newVal = cmd.substring(9);
       newVal.trim();
-      appendEnter = (newVal == "1"); // 只有 "1" 开启，其余一律关闭
+      appendEnter = (newVal == "1"); // only "1" enables, anything else disables
       writeEnterFlagToEEPROM(appendEnter);
       Serial.print("Auto append Enter updated to: ");
       Serial.println(appendEnter ? "ON (1)" : "OFF (0)");
@@ -164,33 +165,33 @@ void loop() {
     }
   }
 
-  // ---------- 按钮检测 ----------
-  // BOOTSEL 按住时返回 true（逻辑与普通上拉按键相反，无需再判断 LOW）
+  // ---------- Button detection ----------
+  // BOOTSEL returns true when held (inverted logic vs. normal pull-up button)
   if (BOOTSEL) {
     unsigned long pressStart = millis();
 
     while (BOOTSEL) {
       if (millis() - pressStart > LONG_PRESS_MS) {
-        // ---------- 长按事件 ----------
+        // ---------- Long press ----------
         Keyboard.print(longOutput);
-        if (appendEnter) Keyboard.write(KEY_RETURN); // 自动追加回车
-        // 等待释放
+        if (appendEnter) Keyboard.write(KEY_RETURN);
+        // Wait for release
         while (BOOTSEL) delay(10);
         return;
       }
       delay(10);
     }
 
-    // 如果按钮在长按阈值前释放，则为短按
+    // If button was released before the long-press threshold, it's a short press
     unsigned long pressDuration = millis() - pressStart;
     if (pressDuration >= SHORT_PRESS_MS) {
-      // ---------- 短按事件 ----------
+      // ---------- Short press ----------
       if (shortOutput.length() == 0) {
-        // 空字符串 -> 发送回车键（本身就是回车，不再追加）
+        // Empty string -> send Enter key only (no need to append another)
         Keyboard.write(KEY_RETURN);
       } else {
         Keyboard.print(shortOutput);
-        if (appendEnter) Keyboard.write(KEY_RETURN); // 自动追加回车
+        if (appendEnter) Keyboard.write(KEY_RETURN);
       }
     }
   }
