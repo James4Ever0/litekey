@@ -1,4 +1,6 @@
-![LiteKey Logo](https://raw.githubusercontent.com/James4Ever0/litekey/main/litekey-logo.png)
+<p align="center">
+    <img src="https://raw.githubusercontent.com/James4Ever0/litekey/main/litekey-logo.png" alt="LiteKey Logo" width="400"/>
+</p>
 
 <h2 align="center">Dual-Mode Password Keyboard</h2>
 
