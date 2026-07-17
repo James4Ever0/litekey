@@ -15,6 +15,21 @@ Two versions are available — see each subfolder for details:
 | **V1** | Two configurable outputs: short press and long press, each with its own stored string | [litekey_v1/](litekey_v1/) |
 | **V2** | Multi-slot (up to 10): short → current slot password, long → cycle slot, RGB LED indicator | [litekey_v2/](litekey_v2/) |
 
+## Important: EEPROM Version Check
+
+Each firmware writes a version marker (V1 = `0x01`, V2 = `0x02`) to the first byte of EEPROM on first boot. On subsequent boots, if the marker does not match the firmware's expected version, **all stored passwords are cleared and settings reset to defaults**.
+
+This means **flashing across different firmware versions** (e.g. V1 → V2, or any future update) will wipe your saved data. Back up your passwords before upgrading.
+
+## Serial Security
+
+Both versions wait **1.5 seconds** for a serial connection at boot. If no serial monitor is opened within that window, the serial port is closed and the device operates solely as a keyboard. Once the serial timeout expires, the device cannot be reconfigured until the next power-on.
+
+## Version-Specific Dependencies
+
+- **V1** — no extra libraries.
+- **V2** — requires the **Adafruit NeoPixel** library for the RGB LED. Install via **Tools > Manage Libraries** → search for and install **"Adafruit NeoPixel"** by Adafruit.
+
 ## Hardware
 
 - **Board:** Waveshare RP2040 Zero (or any RP2040 / RP2350 board with a BOOTSEL button)
@@ -58,21 +73,6 @@ Under **Tools**, ensure **"USB Stack"** is set to **"Adafruit TinyUSB"** (requir
 ### 5. Upload
 
 Put the board into bootloader mode (see above), then click the **Upload** button in Arduino IDE.
-
-## Version-Specific Dependencies
-
-- **V1** — no extra libraries.
-- **V2** — requires the **Adafruit NeoPixel** library for the RGB LED. Install via **Tools > Manage Libraries** → search for and install **"Adafruit NeoPixel"** by Adafruit.
-
-## Important: EEPROM Version Check
-
-Each firmware writes a version marker (V1 = `0x01`, V2 = `0x02`) to the first byte of EEPROM on first boot. On subsequent boots, if the marker does not match the firmware's expected version, **all stored passwords are cleared and settings reset to defaults**.
-
-This means **flashing across different firmware versions** (e.g. V1 → V2, or any future update) will wipe your saved data. Back up your passwords before upgrading.
-
-## Serial Security
-
-Both versions wait **1.5 seconds** for a serial connection at boot. If no serial monitor is opened within that window, the serial port is closed and the device operates solely as a keyboard. Once the serial timeout expires, the device cannot be reconfigured until the next power-on.
 
 ## 3D Printable Shell
 
