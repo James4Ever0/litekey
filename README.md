@@ -2,27 +2,30 @@
     <img src="https://raw.githubusercontent.com/James4Ever0/litekey/main/litekey-logo.png" alt="LiteKey Logo" width="400"/>
 </p>
 
-<h2 align="center">Dual-Mode Password Keyboard</h2>
+<h2 align="center">Dual-Mode Password Keyboard for RP2040 / RP2350</h2>
 
 https://github.com/user-attachments/assets/5857cb4c-461d-425d-8436-c0ecb6eec525
 
-A firmware for **RP2040/RP2350** boards (tested on Waveshare RP2040 Zero) that turns the BOOT button into a dual-function password keyboard:
-- **Short press** — outputs a configurable short string (default: Enter key)
-- **Long press** (>1s) — outputs a configurable password (default: `DefaultPass`)
+A firmware family for **RP2040 / RP2350** boards (tested on Waveshare RP2040 Zero) that turns the BOOT button into a password keyboard. All settings are persisted to Flash (EEPROM) and configured via the serial console.
 
-All settings are persisted to Flash (EEPROM) and can be changed via the serial console.
+Two versions are available — see each subfolder for details:
+
+| Version | Behavior | Link |
+|---|---|---|
+| **V1** | Two-press: short → configurable string, long → password | [litekey_v1/](litekey_v1/) |
+| **V2** | Multi-slot (up to 10): short → current slot password, long → cycle slot, RGB LED indicator | [litekey_v2/](litekey_v2/) |
 
 ## Hardware
 
-- **Board:** Waveshare RP2040 Zero (or any RP2040/RP2350 board with a BOOTSEL button)
+- **Board:** Waveshare RP2040 Zero (or any RP2040 / RP2350 board with a BOOTSEL button)
 - **Connection:** USB-C to USB-A cable to your PC
 
 ## Entering Bootloader (UF2) Mode
 
-Before uploading firmware for the first time, put the board into bootloader mode:
+Before uploading firmware, put the board into bootloader mode:
 
 1. **Hold** the BOOT button (on the RP2040 Zero, this is the button near the USB-C port)
-2. **Press and release** the RESET/RUN button
+2. **Press and release** the RESET / RUN button
 3. **Release** the BOOT button
 4. A USB drive named `RPI-RP2` should appear on your PC
 
@@ -56,45 +59,20 @@ Under **Tools**, ensure **"USB Stack"** is set to **"Adafruit TinyUSB"** (requir
 
 Put the board into bootloader mode (see above), then click the **Upload** button in Arduino IDE.
 
-## Usage
+## Version-Specific Dependencies
 
-Once flashed, the board works as a USB HID keyboard.
+- **V1** — no extra libraries.
+- **V2** — requires the **Adafruit NeoPixel** library for the RGB LED. Install via **Tools > Manage Libraries** → search for and install **"Adafruit NeoPixel"** by Adafruit.
 
-### Basic Operation
+## Important: EEPROM Version Check
 
-- **Short press** the BOOT button — outputs the configured short string
-- **Long press** (>1s) the BOOT button — outputs the configured long string
+Each firmware writes a version marker (V1 = `0x01`, V2 = `0x02`) to the first byte of EEPROM on first boot. On subsequent boots, if the marker does not match the firmware's expected version, **all stored passwords are cleared and settings reset to defaults**.
 
-### Serial Console Configuration
+This means **flashing across different firmware versions** (e.g. V1 → V2, or any future update) will wipe your saved data. Back up your passwords before upgrading.
 
-The board can be configured via the **Arduino IDE Serial Monitor** (Tools > Serial Monitor, baud rate: **115200**).
+## Serial Security
 
-**Important:** The board only waits **1.5 seconds** for a serial connection at boot. If no serial monitor is opened within that window, the serial port is disabled and the device operates solely as a keyboard. This is a security feature — once the serial timeout expires, the device cannot be reconfigured until next power-on.
-
-If you connect in time, the following commands are available:
-
-| Command | Description | Example |
-|---|---|---|
-| `SETLONG:content` | Set long-press output | `SETLONG:MyPass123` |
-| `SETSHORT:content` | Set short-press output | `SETSHORT:hello` |
-| `SETENTER:1` or `SETENTER:0` | Enable/disable auto-append Enter | `SETENTER:1` |
-
-- Send an empty value (e.g. `SETSHORT:`) to clear it — short press will revert to sending just the Enter key.
-- All settings persist across power cycles.
-
-### Factory Defaults
-
-| Setting | Default |
-|---|---|
-| Long press output | `DefaultPass` |
-| Short press output | *(Enter key only)* |
-| Auto-append Enter | ON |
-
-## Technical Notes
-
-- The BOOT button (BOOTSEL) is connected to the QSPI Flash chip-select line, not a regular GPIO. The Philhower core exposes it as a global `BOOTSEL` object — no `pinMode()` required.
-- The firmware uses the `Keyboard.h` HID library to act as a USB keyboard.
-- Serial is only available during the first 1.5s after boot. This limits the reconfiguration window, making the device more secure in unattended deployments.
+Both versions wait **1.5 seconds** for a serial connection at boot. If no serial monitor is opened within that window, the serial port is closed and the device operates solely as a keyboard. Once the serial timeout expires, the device cannot be reconfigured until the next power-on.
 
 ## 3D Printable Shell
 
@@ -106,6 +84,11 @@ A custom shell for the RP2040 Zero is available here:
 
 - **Securing the shell halves:** Use thin black **acetate tape** (also called **cloth electrical tape** or **fabric tape**) to fasten the two halves together. It is thin, conforms well, and holds securely without adding bulk.
 - **Cable:** Always use a **data transfer cable** (USB-C to USB-A), not a charging-only cable. Charging-only cables lack the D+/D- data lines and will not power the board or allow serial communication.
+
+## Technical Notes
+
+- The BOOT button (BOOTSEL) is connected to the QSPI Flash chip-select line, not a regular GPIO. The Philhower core exposes it as a global `BOOTSEL` object — no `pinMode()` required.
+- The firmware uses the `Keyboard.h` HID library to act as a USB keyboard.
 
 ## References
 

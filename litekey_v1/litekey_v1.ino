@@ -20,9 +20,12 @@
 // Philhower core provides a global BOOTSEL object (not a function, no
 // parentheses). It reads true when held; use if (BOOTSEL). No pinMode() needed.
 #define EEPROM_SIZE      512
-#define LONG_ADDR        0     // EEPROM address for long-press string
-#define SHORT_ADDR       128   // EEPROM address for short-press string
-#define ENTER_FLAG_ADDR  256   // EEPROM address for auto-enter flag (1 byte: 1=on, 0=off)
+#define FW_VER           0x01
+
+#define ADDR_FW_VER      0     // 1 byte: firmware version marker
+#define LONG_ADDR        1     // EEPROM address for long-press string
+#define SHORT_ADDR       129   // EEPROM address for short-press string
+#define ENTER_FLAG_ADDR  257   // EEPROM address for auto-enter flag (1 byte: 1=on, 0=off)
 #define MAX_STR_LEN      128   // Max string length in bytes
 
 #define SHORT_PRESS_MS 50
@@ -41,7 +44,22 @@ bool   appendEnter;  // Whether to append Enter after output (persisted to EEPRO
 
 bool useSerial;
 
-// ==================== EEPROM Read/Write Helpers ====================
+// ==================== EEPROM Helpers ====================
+
+// If the firmware version marker does not match FW_VER, reset EEPROM to defaults.
+void initEEPROM() {
+  if (EEPROM.read(ADDR_FW_VER) == FW_VER) return;
+
+  // Clear long-press area
+  for (int i = 0; i < MAX_STR_LEN; i++) EEPROM.write(LONG_ADDR + i, 0);
+  // Clear short-press area
+  for (int i = 0; i < MAX_STR_LEN; i++) EEPROM.write(SHORT_ADDR + i, 0);
+  // Reset auto-enter flag to default
+  EEPROM.write(ENTER_FLAG_ADDR, DEFAULT_APPEND_ENTER ? 1 : 0);
+  // Write version marker
+  EEPROM.write(ADDR_FW_VER, FW_VER);
+  EEPROM.commit();
+}
 
 // Read a string from EEPROM at given address (max maxLen bytes)
 String readStringFromEEPROM(int addr, int maxLen) {
@@ -81,6 +99,9 @@ void setup() {
   Keyboard.begin();
   EEPROM.begin(EEPROM_SIZE);
 
+  // Reset EEPROM to defaults if firmware version mismatch
+  initEEPROM();
+
   // Read long-press setting; fall back to default if empty
   longOutput = readStringFromEEPROM(LONG_ADDR, MAX_STR_LEN);
   if (longOutput.length() == 0) {
@@ -103,7 +124,7 @@ void setup() {
   while (!Serial && millis() < serialTimeout) { delay(10); }
 
   if (Serial){
-    Serial.println("=== RP2040 Dual-Mode Keyboard ===");
+    Serial.println("=== LiteKey V1 ===");
     Serial.print("Long press output: ");
     Serial.println(longOutput);
     Serial.print("Short press output: ");
