@@ -23,7 +23,6 @@ Two versions are available — see each subfolder for details:
 |---|---|---|
 | **RGB LED needed** | No | Yes (GPIO16, configurable) |
 | **External button wiring** | Supported (modify GPIO pin) | Supported (modify GPIO pin) |
-| **Max passwords** | 2 | 10 |
 | **Extras** | — | Adafruit NeoPixel library required |
 
 ## Important: EEPROM Version Check
