@@ -4,7 +4,14 @@ Up to 10 password slots, each with a distinct RGB LED color. Short press types t
 
 ## Extra Dependency
 
-Requires the **Adafruit NeoPixel** library for the RGB LED (GPIO16). Install via **Tools > Manage Libraries** → search for and install **"Adafruit NeoPixel"** by Adafruit.
+Requires the **Adafruit NeoPixel** library for the RGB LED. Install via **Tools > Manage Libraries** → search for and install **"Adafruit NeoPixel"** by Adafruit.
+
+## LED Pin Compatibility
+
+The firmware drives the NeoPixel on **GPIO16**, which is the built-in RGB LED pin on the **Waveshare RP2040 Zero**. Other boards may use a different pin or lack a NeoPixel entirely.
+
+- **Waveshare RP2350 Zero / Pico 2** — check your board's pinout (`PIN_NEOPIXEL` in the variant file) and change `#define LED_PIN 16` accordingly.
+- **Boards without an RGB LED** — V2 requires a NeoPixel to indicate the active slot. If your board has no usable RGB LED, use **V1** instead (no LED needed).
 
 ## Serial Commands (baud: 115200)
 

@@ -10,10 +10,21 @@ A firmware family for **RP2040 / RP2350** boards (tested on Waveshare RP2040 Zer
 
 Two versions are available — see each subfolder for details:
 
+### Versions
+
 | Version | Behavior | Link |
 |---|---|---|
 | **V1** | Two configurable outputs: short press and long press, each with its own stored string | [litekey_v1/](litekey_v1/) |
 | **V2** | Multi-slot (up to 10): short → current slot password, long → cycle slot, RGB LED indicator | [litekey_v2/](litekey_v2/) |
+
+### Compatibility
+
+| | V1 | V2 |
+|---|---|---|
+| **RGB LED needed** | No | Yes (GPIO16, configurable) |
+| **External button wiring** | Supported (modify GPIO pin) | Supported (modify GPIO pin) |
+| **Max passwords** | 2 | 10 |
+| **Extras** | — | Adafruit NeoPixel library required |
 
 ## Important: EEPROM Version Check
 
