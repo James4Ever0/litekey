@@ -2,7 +2,7 @@
     <img src="https://raw.githubusercontent.com/James4Ever0/litekey/main/litekey-logo.png" alt="LiteKey Logo" width="400"/>
 </p>
 
-<h2 align="center">Dual-Mode Password Keyboard for RP2040 / RP2350</h2>
+<h2 align="center">Configurable Password Keyboard for RP2040 / RP2350</h2>
 
 https://github.com/user-attachments/assets/5857cb4c-461d-425d-8436-c0ecb6eec525
 
