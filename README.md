@@ -12,10 +12,10 @@ Two versions are available — see each subfolder for details:
 
 ### Versions
 
-| Version | Behavior | Link |
+| Version | Max passwords | Link |
 |---|---|---|
-| **V1** | Two configurable outputs: short press and long press, each with its own stored string | [litekey_v1/](litekey_v1/) |
-| **V2** | Multi-slot (up to 10): short → current slot password, long → cycle slot, RGB LED indicator | [litekey_v2/](litekey_v2/) |
+| **V1** | 2 | [litekey_v1/](litekey_v1/) |
+| **V2** | 10 | [litekey_v2/](litekey_v2/) |
 
 ### Compatibility
 
