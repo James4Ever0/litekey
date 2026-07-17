@@ -1,6 +1,6 @@
-# LiteKey V1 — Two-Press Password Keyboard
+# LiteKey V1 — Two Configurable Outputs
 
-Short press types a configurable string (default: Enter key). Long press (>1s) types a configurable password (default: `DefaultPass`).
+Short press types its stored string (default: Enter key). Long press (>1s) types its stored string (default: `DefaultPass`). Both are independently configurable.
 
 ## Serial Commands (baud: 115200)
 

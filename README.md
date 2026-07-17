@@ -12,7 +12,7 @@ Two versions are available — see each subfolder for details:
 
 | Version | Behavior | Link |
 |---|---|---|
-| **V1** | Two-press: short → configurable string, long → password | [litekey_v1/](litekey_v1/) |
+| **V1** | Two configurable outputs: short press and long press, each with its own stored string | [litekey_v1/](litekey_v1/) |
 | **V2** | Multi-slot (up to 10): short → current slot password, long → cycle slot, RGB LED indicator | [litekey_v2/](litekey_v2/) |
 
 ## Hardware
