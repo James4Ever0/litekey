@@ -1,4 +1,6 @@
-# LiteKey - Dual-Mode Password Keyboard
+![LiteKey Logo](https://raw.githubusercontent.com/James4Ever0/litekey/main/litekey-logo.png)
+
+<h2 align="center">Dual-Mode Password Keyboard</h2>
 
 https://github.com/user-attachments/assets/5857cb4c-461d-425d-8436-c0ecb6eec525
 
