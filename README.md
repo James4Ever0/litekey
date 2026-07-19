@@ -6,43 +6,48 @@
 
 https://github.com/user-attachments/assets/5857cb4c-461d-425d-8436-c0ecb6eec525
 
-A firmware family for **RP2040 / RP2350** boards (tested on Waveshare RP2040 Zero) that turns the BOOT button into a password keyboard. All settings are persisted to Flash (EEPROM) and configured via the serial console.
+A firmware family for **RP2040 / RP2350** boards (tested on Waveshare RP2040 Zero) that turns the BOOT button into a password keyboard. All settings are persisted to Flash (EEPROM / LittleFS) and configured via the serial console.
 
-Two versions are available — see each subfolder for details:
+Three versions are available — see each subfolder for details:
 
 ### Versions
 
-| Version | Max passwords | Link |
-|---|---|---|
-| **V1** | 2 | [litekey_v1/](litekey_v1/) |
-| **V2** | 10 | [litekey_v2/](litekey_v2/) |
+| Version | Max passwords | Storage | Link |
+|---|---|---|---|
+| **V1** | 2 | EEPROM | [litekey_v1/](litekey_v1/) |
+| **V2** | 10 | EEPROM | [litekey_v2/](litekey_v2/) |
+| **V3** | 10 + DuckyScript / text slots | LittleFS (96 KB per slot) | [litekey_v3/](litekey_v3/) |
 
 ### Compatibility
 
-| | V1 | V2 |
-|---|---|---|
-| **RGB LED needed** | No | Yes (GPIO16, configurable) |
-| **External button wiring** | Supported (modify GPIO pin) | Supported (modify GPIO pin) |
-| **Extras** | — | Adafruit NeoPixel library required |
+| | V1 | V2 | V3 |
+|---|---|---|---|
+| **RGB LED needed** | Optional (set `USE_LED 0` to disable) | Yes | Yes |
+| **External button wiring** | Supported (modify GPIO pin) | Supported (modify GPIO pin) | Supported (modify GPIO pin) |
+| **Extras** | Optional Adafruit NeoPixel (set `USE_LED 0` to disable) | Adafruit NeoPixel library required | Adafruit NeoPixel library required; **LittleFS partition required** (set Flash Size with FS) |
+| **DuckyScript** | — | — | Built-in interpreter |
 
 ## Important: EEPROM Version Check
 
-Each firmware writes a version marker (V1 = `0x01`, V2 = `0x02`) to the first byte of EEPROM on first boot. On subsequent boots, if the marker does not match the firmware's expected version, **all stored passwords are cleared and settings reset to defaults**.
+Each firmware writes a version marker (V1 = `0x01`, V2 = `0x02`, V3 = `0x03`) to the first byte of EEPROM on first boot. On subsequent boots, if the marker does not match the firmware's expected version, **all stored passwords are cleared and settings reset to defaults**.
 
 This means **flashing across different firmware versions** (e.g. V1 → V2, or any future update) will wipe your saved data. Back up your passwords before upgrading.
 
+Note: V3 stores slot content in LittleFS rather than EEPROM, but the EEPROM version check still applies for config data.
+
 ## Serial Security
 
-Both versions wait **1.5 seconds** for a serial connection at boot. If no serial monitor is opened within that window, the serial port is closed and the device operates solely as a keyboard. Once the serial timeout expires, the device cannot be reconfigured until the next power-on.
+All versions wait **1.5 seconds** for a serial connection at boot. If no serial monitor is opened within that window, the serial port is closed and the device operates solely as a keyboard. Once the serial timeout expires, the device cannot be reconfigured until the next power-on.
 
 ## Version-Specific Dependencies
 
-- **V1** — no extra libraries.
-- **V2** — requires the **Adafruit NeoPixel** library for the RGB LED. Install via **Tools > Manage Libraries** → search for and install **"Adafruit NeoPixel"** by Adafruit.
+- **V1** — optionally requires the **Adafruit NeoPixel** library (set `USE_LED 0` to disable).
+- **V2** — requires the **Adafruit NeoPixel** library.
+- **V3** — requires the **Adafruit NeoPixel** library and a **Flash Size with LittleFS partition** (e.g. `2MB (FS: 1MB)`). See the [V3 Arduino IDE Setup](litekey_v3/ARDUINO_IDE_SETUP.md) for details.
 
 ## Hardware
 
-- **Board:** Waveshare RP2040 Zero (or any RP2040 / RP2350 board with a BOOTSEL button)
+- **Board:** Waveshare RP2040 Zero (or any RP2040 / RP2350 board with a BOOTSEL button and NeoPixel)
 - **Connection:** USB-C to USB-A cable to your PC
 
 ## Entering Bootloader (UF2) Mode
@@ -83,6 +88,8 @@ Under **Tools**, ensure **"USB Stack"** is set to **"Adafruit TinyUSB"** (requir
 ### 5. Upload
 
 Put the board into bootloader mode (see above), then click the **Upload** button in Arduino IDE.
+
+> **V3 note:** After selecting the board, also set **Tools > Flash Size** to an option that includes a filesystem (e.g. `2MB (FS: 1MB)`). Without this, LittleFS writes will fail.
 
 ## 3D Printable Shell
 

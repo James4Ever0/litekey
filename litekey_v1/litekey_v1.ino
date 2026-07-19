@@ -11,8 +11,14 @@
  * - All settings saved to Flash (EEPROM)
  */
 
+// RGB LED is on by default — set USE_LED 0 to disable
+#define USE_LED           1
+
 #include <Keyboard.h>
 #include <EEPROM.h>
+#if USE_LED
+#include <Adafruit_NeoPixel.h>
+#endif
 
 // ==================== Constants ====================
 // Note: The BOOT button (BOOTSEL) is connected to the QSPI Flash chip-select
@@ -32,6 +38,12 @@
 #define LONG_PRESS_MS  1000
 #define SERIAL_TIMEOUT 1500 // Continue even if serial is not ready.
 
+// RGB LED (RP2040 Zero NeoPixel on pin 16) — set USE_LED 0 to disable
+#if USE_LED
+#define LED_PIN           16
+#define NUM_LEDS          1
+#endif
+
 // ==================== Defaults ====================
 const String DEFAULT_LONG  = "DefaultPass";  // Default long-press password
 const String DEFAULT_SHORT = "";             // Default short-press (empty = Enter key)
@@ -43,6 +55,10 @@ String shortOutput;  // String output on short press
 bool   appendEnter;  // Whether to append Enter after output (persisted to EEPROM)
 
 bool useSerial;
+
+#if USE_LED
+Adafruit_NeoPixel strip(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
+#endif
 
 // ==================== EEPROM Helpers ====================
 
@@ -93,9 +109,29 @@ void writeEnterFlagToEEPROM(bool val) {
   EEPROM.commit();
 }
 
+#if USE_LED
+// Flash the NeoPixel twice in the given colour (100 ms on / 100 ms off)
+void flashLED(uint8_t r, uint8_t g, uint8_t b) {
+  for (int i = 0; i < 2; i++) {
+    strip.setPixelColor(0, strip.Color(r, g, b));
+    strip.show();
+    delay(100);
+    strip.setPixelColor(0, 0, 0, 0);
+    strip.show();
+    delay(100);
+  }
+}
+#endif
+
 // ==================== setup ====================
 void setup() {
   // BOOTSEL is read via the global object, no pinMode() needed
+#if USE_LED
+  strip.begin();
+  strip.setBrightness(50);
+  strip.show();
+#endif
+
   Keyboard.begin();
   EEPROM.begin(EEPROM_SIZE);
 
@@ -194,6 +230,9 @@ void loop() {
     while (BOOTSEL) {
       if (millis() - pressStart > LONG_PRESS_MS) {
         // ---------- Long press ----------
+#if USE_LED
+        flashLED(0, 255, 0);  // green flash
+#endif
         Keyboard.print(longOutput);
         if (appendEnter) Keyboard.write(KEY_RETURN);
         // Wait for release
@@ -207,6 +246,9 @@ void loop() {
     unsigned long pressDuration = millis() - pressStart;
     if (pressDuration >= SHORT_PRESS_MS) {
       // ---------- Short press ----------
+#if USE_LED
+      flashLED(255, 0, 0);  // red flash
+#endif
       if (shortOutput.length() == 0) {
         // Empty string -> send Enter key only (no need to append another)
         Keyboard.write(KEY_RETURN);

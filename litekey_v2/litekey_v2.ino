@@ -1,3 +1,4 @@
+ 
 /*
  * LiteKey Upgraded — Multi-Slot Password Keyboard for RP2040 Zero
  * - Short press BOOT: types password for the current slot
@@ -8,6 +9,7 @@
  *     SETPASS:n <password>  -> set password for slot n
  *     SETSLOTS:n            -> set number of active slots (1..10)
  *     SETENTER:1 or 0       -> enable/disable auto-append Enter
+ *     SETSWAP:1 or 0        -> swap long/short press roles (default 0)
  * - All settings persisted to Flash (EEPROM)
  */
 
@@ -36,7 +38,8 @@
 #define ADDR_SLOT_COUNT   1      // 1 byte: number of active slots (1..10)
 #define ADDR_CUR_SLOT     2      // 1 byte: current active slot (1..n)
 #define ADDR_ENTER_FLAG   3      // 1 byte: auto-append-enter (1=on, 0=off)
-                                 // 4..127 reserved
+#define ADDR_SWAP_FLAG    4      // 1 byte: swap long/short press roles (1=swapped, 0=normal)
+                                 // 5..127 reserved
 #define ADDR_SLOT_PASS_BASE  128 // 10 * 38 = 380 bytes, covers 128..507
                                  // 508..511 reserved
 
@@ -44,6 +47,7 @@
 const int     DEFAULT_SLOT_COUNT = 1;
 const int     DEFAULT_CUR_SLOT   = 1;
 const bool    DEFAULT_APPEND_ENTER = true;
+const bool    DEFAULT_SWAP_PRESS   = false;
 const String  DEFAULT_PASSWORDS[MAX_SLOTS] = {
   "DefaultPass", "", "", "", "", "", "", "", "", ""
 };
@@ -68,6 +72,7 @@ int    slotCount;                          // number of active slots (1..10)
 int    currentSlot;                        // active slot index (1-based)
 String slotPasswords[MAX_SLOTS];           // passwords for each slot
 bool   appendEnter;                        // auto-append Enter flag
+bool   swapPress;                          // swap long/short press roles flag
 bool   useSerial;                          // true if serial is available
 Adafruit_NeoPixel strip(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -125,9 +130,33 @@ void clearLED() {
   strip.show();
 }
 
+// Brief double LED flash to acknowledge a type-password event
+void flashSlotLED() {
+  for (int i = 0; i < 2; i++) {
+    strip.setPixelColor(0, 0, 0, 0);
+    strip.show();
+    delay(100);
+    setSlotLED(currentSlot);
+    if (i < 1) delay(50);
+  }
+}
+
+// Flash red -> none thrice to signal only one slot is available, then restore current slot color
+void flashNoMoreSlots() {
+  for (int i = 0; i < 3; i++) {
+    strip.setPixelColor(0, Adafruit_NeoPixel::Color(255, 0, 0));
+    strip.show();
+    delay(150);
+    strip.setPixelColor(0, 0, 0, 0);
+    strip.show();
+    delay(150);
+  }
+  setSlotLED(currentSlot);
+}
+
 // ==================== EEPROM Initialisation / Version Check ====================
 // If the firmware version marker at address 0 does not match FW_VER,
-// wipe all slots to empty, reset append-enter to default, and write FW_VER.
+// wipe all slots to empty, reset flags to defaults, and write FW_VER.
 void initEEPROM() {
   uint8_t ver = EEPROM.read(ADDR_FW_VER);
   if (ver == FW_VER) return;
@@ -148,6 +177,9 @@ void initEEPROM() {
   // Reset append-enter to default
   EEPROM.write(ADDR_ENTER_FLAG, DEFAULT_APPEND_ENTER ? 1 : 0);
 
+  // Reset swap press to default
+  EEPROM.write(ADDR_SWAP_FLAG, DEFAULT_SWAP_PRESS ? 1 : 0);
+
   // Write firmware version marker
   EEPROM.write(ADDR_FW_VER, FW_VER);
   EEPROM.commit();
@@ -166,6 +198,11 @@ void loadSettings() {
   // Auto-enter flag
   uint8_t flag = readByteWithDefault(ADDR_ENTER_FLAG, DEFAULT_APPEND_ENTER ? 1 : 0);
   appendEnter = (flag == 1);
+
+  // Swap long/short press flag -- enforce 0/1, default to 0
+  uint8_t swapFlag = readByteWithDefault(ADDR_SWAP_FLAG, DEFAULT_SWAP_PRESS ? 1 : 0);
+  if (swapFlag != 0 && swapFlag != 1) swapFlag = DEFAULT_SWAP_PRESS ? 1 : 0;
+  swapPress = (swapFlag == 1);
 
   // Slot passwords
   for (int i = 0; i < MAX_SLOTS; i++) {
@@ -258,13 +295,27 @@ void handleSerial() {
     Serial.print("Auto append Enter: ");
     Serial.println(appendEnter ? "ON (1)" : "OFF (0)");
   }
+  else if (cmd.startsWith("SETSWAP:")) {
+    String newVal = cmd.substring(8);
+    newVal.trim();
+    swapPress = (newVal == "1");
+    writeByteToEEPROM(ADDR_SWAP_FLAG, swapPress ? 1 : 0);
+    Serial.print("Swap long/short press: ");
+    Serial.println(swapPress ? "ON (1)" : "OFF (0)");
+  }
   else {
-    Serial.println("Unknown. Commands: SETPASS:n [password], SETSLOTS:n, SETENTER:1|0");
+    Serial.println("Unknown. Commands: SETPASS:n [password], SETSLOTS:n, SETENTER:1|0, SETSWAP:1|0");
   }
 }
 
 // ==================== Slot Cycling ====================
 void cycleSlot() {
+  // With only one active slot there is nothing to cycle to; warn visually
+  if (slotCount <= 1) {
+    flashNoMoreSlots();
+    return;
+  }
+
   currentSlot++;
   if (currentSlot > slotCount) currentSlot = 1;
   writeByteToEEPROM(ADDR_CUR_SLOT, currentSlot);
@@ -281,6 +332,9 @@ void cycleSlot() {
 
 // ==================== Password Typing ====================
 void typePassword() {
+  // Visual feedback for the input event, even if the slot is empty
+  flashSlotLED();
+
   String pass = slotPasswords[currentSlot - 1];
   if (pass.length() == 0) {
     // Empty slot: just send Enter if auto-append is on
@@ -329,10 +383,13 @@ void setup() {
     Serial.println(currentSlot);
     Serial.print("Auto Enter: ");
     Serial.println(appendEnter ? "ON" : "OFF");
+    Serial.print("Swap press: ");
+    Serial.println(swapPress ? "ON" : "OFF");
     Serial.println("Commands:");
     Serial.println("  SETPASS:n <password>  -> set slot n password (omit <password> to clear)");
     Serial.println("  SETSLOTS:n            -> set active slots (1..10)");
     Serial.println("  SETENTER:1 or 0       -> auto-append Enter");
+    Serial.println("  SETSWAP:1 or 0        -> swap long/short press roles");
   } else {
     Serial.end();
     useSerial = false;
@@ -349,13 +406,19 @@ void loop() {
 
   // ---------- Button detection ----------
   // BOOTSEL returns true when held
+  // Default (swapPress=false): short press types password, long press cycles slot.
+  // Swapped (swapPress=true):  short press cycles slot, long press types password.
   if (BOOTSEL) {
     unsigned long pressStart = millis();
 
     while (BOOTSEL) {
       if (millis() - pressStart > LONG_PRESS_MS) {
-        // ---------- Long press: cycle to next slot ----------
-        cycleSlot();
+        // ---------- Long press ----------
+        if (swapPress) {
+          typePassword();
+        } else {
+          cycleSlot();
+        }
         // Wait for release
         while (BOOTSEL) delay(10);
         return;
@@ -366,8 +429,12 @@ void loop() {
     // Button released before long-press threshold → short press
     unsigned long pressDuration = millis() - pressStart;
     if (pressDuration >= SHORT_PRESS_MS) {
-      // ---------- Short press: type current slot password ----------
-      typePassword();
+      // ---------- Short press ----------
+      if (swapPress) {
+        cycleSlot();
+      } else {
+        typePassword();
+      }
     }
   }
 
